@@ -6,7 +6,7 @@ It discovers public repositories directly from GitHub and manages only projects 
 
 ## Version
 
-Current version: **1.01**
+Current version: **1.02**
 
 ## Requirements
 
@@ -20,9 +20,9 @@ No GitHub CLI, GitHub authentication, or other helper installation is required f
 
 Self-update is phase zero and follows the shared Wipe Codes upgrade protocol.
 
-The repository copy of `global-upgrade.cmd` immediately transfers execution to a unique temporary launcher. The temporary launcher fetches `origin/main`, compares local and remote HEAD, and synchronizes GlobalUpgrade before normal repository processing starts.
+The repository copy of `global-upgrade.cmd` immediately transfers execution to a unique temporary launcher in the same console window. The temporary launcher fetches `origin/main`, compares local and remote HEAD, and synchronizes GlobalUpgrade before normal repository processing starts.
 
-The repository launcher never continues reading after an operation that can replace it. This avoids the known CMD self-replacement failure mode.
+The temporary launcher performs all operations that can replace the repository copy; the repository launcher only receives the final exit code and terminates. This avoids the known CMD self-replacement failure mode.
 
 Tracked or staged local changes are never silently destroyed. Self-update stops with a clear error instead.
 
@@ -58,7 +58,7 @@ The console is cleared immediately at startup. After self-update and project pro
 ## Result table
 
 ```text
-GLOBAL UPGRADE 1.01
+GLOBAL UPGRADE 1.02
 ==========================================================================================
 Repository                         Old          Version      Status       Result
 ------------------------------------------------------------------------------------------
