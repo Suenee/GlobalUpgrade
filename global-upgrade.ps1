@@ -151,7 +151,6 @@ foreach($item in $managed){
     }
 }
 
-Clear-Host
 Write-Host "GLOBAL UPGRADE $Version"
 Write-Host ('='*90)
 Write-Host ('{0,-34} {1,-12} {2,-12} {3,-12} {4}' -f 'Repository','Old','Version','Status','Result')
