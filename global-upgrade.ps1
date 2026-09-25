@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.16'
+$Version = '1.17'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -259,18 +259,27 @@ foreach($item in $managed){
             } catch { $needs=$true }
         }
         if($needs){
+            Write-Host "[$name] Starting project updater..."
             $projectRc=Invoke-ProjectUpdater $dir
+            Write-Host "[$name] Project updater returned RC=$projectRc."
+            Write-Host "[$name] Reading installed version..."
             $new=Get-Version $dir
+            Write-Host "[$name] Installed version='$new'."
             if($projectRc -ne 0){
                 Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII
                 $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status=if($install){'INSTALL'}else{'UPDATE'};Result='FAIL'})
                 continue
             }
             if(-not $install){
+                Write-Host "[$name] Verifying repository synchronization..."
                 Set-SafeDirectory $dir
                 try {
+                    Write-Host "[$name] Reading local HEAD..."
                     $lhAfter=(Invoke-Git @('rev-parse','HEAD') $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
+                    Write-Host "[$name] Local HEAD=$lhAfter."
+                    Write-Host "[$name] Reading origin/$selected HEAD..."
                     $rhAfter=(Invoke-Git @('rev-parse',"origin/$selected") $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
+                    Write-Host "[$name] Remote HEAD=$rhAfter."
                     if($lhAfter -ne $rhAfter){
                         Write-Host "[$name] ERROR: updater returned success but repository HEAD is not synchronized to origin/$selected." -ForegroundColor Red
                         Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII
@@ -284,13 +293,18 @@ foreach($item in $managed){
                     continue
                 }
             }
+            Write-Host "[$name] Repository verification complete."
             if(Test-Path -LiteralPath $failureMarker){ Remove-Item -LiteralPath $failureMarker -Force -ErrorAction SilentlyContinue }
             $status=if($install){'INSTALLED'}else{'UPDATED'}
             if($old -eq $new){$oldShown=''}else{$oldShown=$old}
             $results.Add([pscustomobject]@{Repository=$name;Old=$oldShown;Version=$new;Status=$status;Result='OK'})
+            Write-Host "[$name] Result recorded: $status / OK."
         } else {
+            Write-Host "[$name] No update required; reading installed version..."
             $new=Get-Version $dir
+            Write-Host "[$name] Installed version='$new'."
             $results.Add([pscustomobject]@{Repository=$name;Old='';Version=$new;Status='CURRENT';Result='OK'})
+            Write-Host "[$name] Result recorded: CURRENT / OK."
         }
     } catch {
         if($failureMarker){ Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII }
