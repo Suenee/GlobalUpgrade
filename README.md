@@ -2,62 +2,64 @@
 
 GlobalUpgrade is a centralized Windows updater for repositories owned by **Suenee**.
 
-It discovers repositories directly from GitHub and manages only projects that explicitly opt in by providing an `upgrade.cmd` file in their authoritative branch.
+It discovers public repositories directly from GitHub and manages only projects that explicitly opt in by providing an `upgrade.cmd` file in their authoritative branch.
 
 ## Version
 
-Current version: **1.00**
-
-## Core rules
-
-- Repository discovery comes from GitHub; there is no manually maintained project list.
-- If a repository contains a `devel` branch, `devel` is authoritative.
-- Otherwise, the repository's default branch is used.
-- A repository without `upgrade.cmd` in the selected branch is ignored completely.
-- Before a project updater is executed, the local `upgrade.cmd` is refreshed from GitHub.
-- This protects against outdated, broken, missing, or incomplete local updaters.
-- Existing repositories are checked against the selected upstream branch.
-- Missing or incomplete repositories are handed to their own current `upgrade.cmd` for bootstrap/repair.
-- Failure of one repository never stops processing of the remaining repositories.
-- Each project remains responsible for its own detailed logging and upgrade logic.
-- GlobalUpgrade itself does not contain `upgrade.cmd`, so it is naturally excluded by the same opt-in rule and cannot recursively invoke itself.
-
-## Location independence
-
-GlobalUpgrade determines the repository root from its own physical location.
-
-Example:
-
-```text
-D:\WORK\GitHub\GlobalUpgrade\global-upgrade.cmd
-                     ↓
-D:\WORK\GitHub\
-```
-
-The same installation can therefore be moved to another drive letter, including mapped network drives such as `N:`, without changing the script.
+Current version: **1.01**
 
 ## Requirements
 
 - Windows 10/11
 - Git
-- GitHub CLI (`gh`)
-- Authenticated GitHub CLI session
-- PowerShell
+- Windows PowerShell
 
-Authenticate GitHub CLI once with:
+No GitHub CLI, GitHub authentication, or other helper installation is required for public repositories.
+
+## Self-update
+
+Self-update is phase zero and follows the shared Wipe Codes upgrade protocol.
+
+The repository copy of `global-upgrade.cmd` immediately transfers execution to a unique temporary launcher. The temporary launcher fetches `origin/main`, compares local and remote HEAD, and synchronizes GlobalUpgrade before normal repository processing starts.
+
+The repository launcher never continues reading after an operation that can replace it. This avoids the known CMD self-replacement failure mode.
+
+Tracked or staged local changes are never silently destroyed. Self-update stops with a clear error instead.
+
+GlobalUpgrade deliberately does **not** contain `upgrade.cmd`. It therefore remains naturally excluded from the normal managed-project discovery process and cannot recursively invoke itself.
+
+## Managed repositories
+
+- Repository discovery comes directly from the public GitHub API.
+- `devel` is authoritative whenever that branch exists.
+- Otherwise the repository default branch is authoritative.
+- A repository without `upgrade.cmd` in the selected branch is ignored completely.
+- Before execution, the authoritative project `upgrade.cmd` is downloaded and normalized to Windows CRLF.
+- Missing/incomplete local repositories are passed to the project's own updater for bootstrap.
+- One project failure never prevents processing of the remaining projects.
+- The project updater's exit code is authoritative.
+
+## Location independence
+
+The repository root is derived from the physical location of GlobalUpgrade. No drive letter is hard-coded.
+
+Mapped network drives are supported. Repository access uses `pushd`, and Git `safe.directory` is scoped to the current process and exact repository path.
+
+## Usage
+
+Run:
 
 ```cmd
-gh auth login
+global-upgrade.cmd
 ```
+
+The console is cleared immediately at startup. After self-update and project processing, GlobalUpgrade clears the console again and displays the final color-coded summary.
 
 ## Result table
 
-At the end of every run the screen is cleared and a summary is displayed:
-
 ```text
-GLOBAL UPGRADE 1.00
+GLOBAL UPGRADE 1.01
 ==========================================================================================
-
 Repository                         Old          Version      Status       Result
 ------------------------------------------------------------------------------------------
 FolderHeatMap                                   1.53         CURRENT      OK
@@ -69,32 +71,6 @@ ExampleProject                     0.03         0.03         UPDATE       FAIL
 OK: 3    FAIL: 1
 ```
 
-The `Old` column is populated only when the version changed during the run.
+The `Old` column is populated only when the detected project version actually changes.
 
-Successful rows are shown in green and failed rows in red.
-
-## Status values
-
-- `CURRENT` — repository was already current.
-- `UPDATED` — existing repository was successfully updated.
-- `INSTALLED` — missing/incomplete repository was successfully bootstrapped.
-- `UPDATE` / `INSTALL` — attempted operation failed.
-- `UPDATER` — refreshing `upgrade.cmd` failed.
-- `CHECK` — the local repository could not be inspected.
-
-## Logging
-
-GlobalUpgrade intentionally does not maintain a permanent execution log. Each managed repository keeps its own upgrade log according to that project's logging rules.
-
-## Repository layout
-
-GlobalUpgrade is expected to live next to the repositories it manages:
-
-```text
-GitHub\
-├── FolderHeatMap\
-├── GlobalUpgrade\
-│   └── global-upgrade.cmd
-├── VoicePrompter\
-└── ...
-```
+GlobalUpgrade does not keep a persistent global log. Detailed upgrade logging remains the responsibility of each managed project's `upgrade.cmd`.
