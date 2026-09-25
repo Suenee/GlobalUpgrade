@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.11'
+$Version = '1.12'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -134,7 +134,9 @@ foreach($item in $managed){
     $install=-not (Test-Path -LiteralPath (Join-Path $dir '.git'))
     try {
         if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-        Install-AuthoritativeUpdater $name $selected $dir
+        if($install){
+            Install-AuthoritativeUpdater $name $selected $dir
+        }
         $needs=$install
         if(-not $install){
             Set-SafeDirectory $dir
@@ -147,7 +149,10 @@ foreach($item in $managed){
         }
         if($needs){
             Push-Location -LiteralPath $dir
-            try { & (Join-Path $dir 'upgrade.cmd'); $projectRc=$LASTEXITCODE } finally { Pop-Location }
+            try {
+                & cmd.exe /d /c call upgrade.cmd
+                $projectRc=$LASTEXITCODE
+            } finally { Pop-Location }
             $new=Get-Version $dir
             if($projectRc -ne 0){
                 $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status=if($install){'INSTALL'}else{'UPDATE'};Result='FAIL'})
