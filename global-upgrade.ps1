@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.12'
+$Version = '1.13'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -85,6 +85,13 @@ function Get-ManagedRepositories {
     }
 }
 
+function Invoke-ProjectUpdater([string]$LocalDir) {
+    $launcher=Join-Path $LocalDir 'upgrade.cmd'
+    if(-not (Test-Path -LiteralPath $launcher -PathType Leaf)){ throw "upgrade.cmd is missing: $launcher" }
+    $proc=Start-Process -FilePath $env:ComSpec -ArgumentList @('/d','/c','call upgrade.cmd') -WorkingDirectory $LocalDir -NoNewWindow -Wait -PassThru
+    return [int]$proc.ExitCode
+}
+
 function Install-AuthoritativeUpdater([string]$Name,[string]$SelectedBranch,[string]$LocalDir) {
     $uri="https://raw.githubusercontent.com/$Owner/$Name/$SelectedBranch/upgrade.cmd"
     $text=(Invoke-WebRequest -UseBasicParsing -Headers $Headers -Uri $uri).Content
@@ -148,15 +155,27 @@ foreach($item in $managed){
             } catch { $needs=$true }
         }
         if($needs){
-            Push-Location -LiteralPath $dir
-            try {
-                & cmd.exe /d /c call upgrade.cmd
-                $projectRc=$LASTEXITCODE
-            } finally { Pop-Location }
+            $projectRc=Invoke-ProjectUpdater $dir
             $new=Get-Version $dir
             if($projectRc -ne 0){
                 $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status=if($install){'INSTALL'}else{'UPDATE'};Result='FAIL'})
                 continue
+            }
+            if(-not $install){
+                Set-SafeDirectory $dir
+                try {
+                    $lhAfter=(Invoke-Git @('rev-parse','HEAD') $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
+                    $rhAfter=(Invoke-Git @('rev-parse',"origin/$selected") $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
+                    if($lhAfter -ne $rhAfter){
+                        Write-Host "[$name] ERROR: updater returned success but repository HEAD is not synchronized to origin/$selected." -ForegroundColor Red
+                        $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status='UPDATE';Result='FAIL'})
+                        continue
+                    }
+                } catch {
+                    Write-Host "[$name] ERROR: could not verify repository state after updater: $($_.Exception.Message)" -ForegroundColor Red
+                    $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status='UPDATE';Result='FAIL'})
+                    continue
+                }
             }
             $status=if($install){'INSTALLED'}else{'UPDATED'}
             if($old -eq $new){$oldShown=''}else{$oldShown=$old}
