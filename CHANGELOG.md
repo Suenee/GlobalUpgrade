@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.17] - 25.09.2026
+
+### Diagnostics
+- Added explicit per-project checkpoints around updater return, version detection, Git HEAD verification, and result recording.
+- Checkpoints make a stalled global run identify the exact operation after a project updater has completed.
+- No project upgrade behavior was intentionally changed in this diagnostic release.
+
+
 ## [1.16] - 25.09.2026
 
 ### Fixed
