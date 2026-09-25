@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.01] - 25.09.2026
+
+### Changed
+- Removed the GitHub CLI (`gh`) dependency.
+- Public repository discovery now uses the GitHub REST API through standard Windows PowerShell.
+- The console is cleared immediately when GlobalUpgrade starts.
+- Reworked GlobalUpgrade startup around the proven self-update protocol documented in FolderHeatMap `UPGRADE.md`.
+- The repository launcher now hands execution to a unique temporary copy before any Git synchronization can replace the running script.
+- Added phase-zero self-update against `origin/main`.
+- Added protection against silently overwriting tracked or staged local GlobalUpgrade changes.
+- Added process-scoped exact Git `safe.directory` handling for local/mapped/network repository locations.
+- Project `upgrade.cmd` downloads are normalized to CRLF before execution.
+- Final process exit code is non-zero when one or more managed project upgrades fail.
+
+### Removed
+- GitHub CLI authentication requirement.
+
 ## [1.00] - 25.09.2026
 
 ### Added
@@ -15,4 +32,3 @@ All notable changes to this project are documented in this file.
 - Support for installations on different local or mapped network drive letters.
 - Failure isolation so one broken repository does not stop the remaining upgrades.
 - Final color-coded summary table with repository, old version, current version, status, and result.
-- Version detection from `VERSION`, `package.json`, and common manifest/source files.
