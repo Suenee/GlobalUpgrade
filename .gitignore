@@ -1,0 +1,4 @@
+# Temporary/local files
+*.log
+*.tmp
+*.bak
