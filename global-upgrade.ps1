@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.13'
+$Version = '1.14'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -142,6 +142,8 @@ Write-Host ''
 
 $root=Split-Path -Parent $RepositoryPath
 $results=New-Object System.Collections.Generic.List[object]
+$stateDir=Join-Path $RepositoryPath '.state'
+if(-not (Test-Path -LiteralPath $stateDir)){ New-Item -ItemType Directory -Path $stateDir -Force | Out-Null }
 Write-Host 'Discovering managed repositories...'
 try { $managed=@(Get-ManagedRepositories) }
 catch { throw "GitHub repository discovery failed: $($_.Exception.Message)" }
@@ -164,6 +166,7 @@ foreach($item in $managed){
             Install-AuthoritativeUpdater $name $selected $dir
         }
         $needs=$install
+        $failureMarker=Join-Path $stateDir ($name + '.failed')
         if(-not $install){
             Set-SafeDirectory $dir
             try {
@@ -171,12 +174,17 @@ foreach($item in $managed){
                 $lh=(Invoke-Git @('rev-parse','HEAD') $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
                 $rh=(Invoke-Git @('rev-parse',"origin/$selected") $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
                 $needs=($lh -ne $rh)
+                if((Test-Path -LiteralPath $failureMarker) -and -not $needs){
+                    Write-Host "[$name] Previous upgrade attempt failed; retrying the current remote revision." -ForegroundColor Yellow
+                    $needs=$true
+                }
             } catch { $needs=$true }
         }
         if($needs){
             $projectRc=Invoke-ProjectUpdater $dir
             $new=Get-Version $dir
             if($projectRc -ne 0){
+                Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII
                 $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status=if($install){'INSTALL'}else{'UPDATE'};Result='FAIL'})
                 continue
             }
@@ -187,15 +195,18 @@ foreach($item in $managed){
                     $rhAfter=(Invoke-Git @('rev-parse',"origin/$selected") $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
                     if($lhAfter -ne $rhAfter){
                         Write-Host "[$name] ERROR: updater returned success but repository HEAD is not synchronized to origin/$selected." -ForegroundColor Red
+                        Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII
                         $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status='UPDATE';Result='FAIL'})
                         continue
                     }
                 } catch {
                     Write-Host "[$name] ERROR: could not verify repository state after updater: $($_.Exception.Message)" -ForegroundColor Red
+                    Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII
                     $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status='UPDATE';Result='FAIL'})
                     continue
                 }
             }
+            if(Test-Path -LiteralPath $failureMarker){ Remove-Item -LiteralPath $failureMarker -Force -ErrorAction SilentlyContinue }
             $status=if($install){'INSTALLED'}else{'UPDATED'}
             if($old -eq $new){$oldShown=''}else{$oldShown=$old}
             $results.Add([pscustomobject]@{Repository=$name;Old=$oldShown;Version=$new;Status=$status;Result='OK'})
@@ -204,6 +215,7 @@ foreach($item in $managed){
             $results.Add([pscustomobject]@{Repository=$name;Old='';Version=$new;Status='CURRENT';Result='OK'})
         }
     } catch {
+        if($failureMarker){ Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII }
         Write-Host "[$name] ERROR: $($_.Exception.Message)" -ForegroundColor Red
         $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=(Get-Version $dir);Status=if($install){'INSTALL'}else{'UPDATE'};Result='FAIL'})
     }
