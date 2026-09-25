@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.06] - 25.09.2026
+
+### Changed
+- Added explicit discovery diagnostics before repository processing.
+- The runner now prints the number of managed repositories and each detected repository/branch pair.
+- A zero-result discovery is highlighted as an error condition while preserving the full diagnostic output.
+
+
 ## [1.05] - 25.09.2026
 
 ### Changed
