@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.12] - 25.09.2026
+
+### Fixed
+- Existing repositories are no longer modified by GlobalUpgrade before their own updater starts.
+- The authoritative remote `upgrade.cmd` is written only for fresh/bootstrap installations.
+- Existing repositories keep ownership of their own updater self-update workflow, preventing GlobalUpgrade from creating tracked `upgrade.cmd` changes.
+- Project launchers are invoked explicitly through `cmd.exe /d /c call upgrade.cmd`, and the child process exit code is captured immediately for the final result.
+
+
 ## [1.11] - 25.09.2026
 
 ### Changed
