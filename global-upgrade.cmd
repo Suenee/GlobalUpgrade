@@ -2,9 +2,9 @@
 cls
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title GlobalUpgrade 1.04
+title GlobalUpgrade 1.05
 
-set "GU_VERSION=1.04"
+set "GU_VERSION=1.05"
 set "GU_REPO=%~dp0"
 if "%GU_REPO:~-1%"=="\" set "GU_REPO=%GU_REPO:~0,-1%"
 set "GU_TEMP=%TEMP%\GlobalUpgrade-runner-%RANDOM%-%RANDOM%.ps1"
