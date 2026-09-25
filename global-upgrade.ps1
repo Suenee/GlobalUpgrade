@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.07'
+$Version = '1.08'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -49,8 +49,13 @@ function Get-HttpStatus($Exception) {
 function Get-ManagedRepositories {
     $all=@(); $page=1
     do {
-        $r=@(Invoke-RestMethod -UseBasicParsing -Headers $Headers -Uri "$GitHubApi/users/$Owner/repos?per_page=100&page=$page")
-        $all += $r; $page++
+        $response=Invoke-RestMethod -UseBasicParsing -Headers $Headers -Uri "$GitHubApi/users/$Owner/repos?per_page=100&page=$page"
+        $r=@($response)
+        if($r.Count -eq 1 -and $r[0] -is [System.Array]){
+            $r=@($r[0])
+        }
+        $all += $r
+        $page++
     } while($r.Count -eq 100)
 
     Write-Host ("[DISCOVERY] Public repositories returned by GitHub: {0}" -f $all.Count)
