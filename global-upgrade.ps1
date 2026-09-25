@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.04'
+$Version = '1.05'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -59,13 +59,20 @@ function Get-ManagedRepositories {
             Invoke-RestMethod -UseBasicParsing -Headers $Headers -Uri "$GitHubApi/repos/$Owner/$($x.name)/branches/devel" | Out-Null
             $b='devel'
         } catch {
-            if((Get-HttpStatus $_.Exception) -ne 404){ throw }
+            # A missing devel branch is expected; GitHub/PowerShell may expose
+            # HTTP status inconsistently, so fall back to the default branch.
+            $b=$x.default_branch
         }
+
+        # Test opt-in with raw content. A successful GET proves upgrade.cmd exists.
+        # A missing file simply means the repository is unmanaged.
+        $upgradeUri="https://raw.githubusercontent.com/$Owner/$($x.name)/$b/upgrade.cmd"
         try {
-            Invoke-RestMethod -UseBasicParsing -Headers $Headers -Uri "$GitHubApi/repos/$Owner/$($x.name)/contents/upgrade.cmd?ref=$b" | Out-Null
+            $null=(Invoke-WebRequest -UseBasicParsing -Headers $Headers -Uri $upgradeUri).Content
             [pscustomobject]@{Name=$x.name;Branch=$b}
         } catch {
-            if((Get-HttpStatus $_.Exception) -ne 404){ throw }
+            # Ignore only this repository. Discovery of the remaining repositories
+            # must continue even when upgrade.cmd is absent.
         }
     }
 }
