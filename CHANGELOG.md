@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.14] - 25.09.2026
+
+### Fixed
+- Persist failed project-upgrade state in GlobalUpgrade.
+- A repository whose last upgrade failed is retried on the next global run even when its local Git HEAD already matches the selected remote branch.
+- The failure marker is removed only after the project updater succeeds and repository synchronization is verified.
+- This prevents a failed build/test/deploy from being reported as `CURRENT / OK` on the next run.
+
+
 ## [1.13] - 25.09.2026
 
 ### Fixed
