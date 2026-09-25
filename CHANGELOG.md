@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10] - 25.09.2026
+
+### Changed
+- Repositories with `CURRENT / OK` status are shown in yellow in the final summary.
+- Successful updates remain green, successful fresh installations blue, and failures red.
+
+
 ## [1.09] - 25.09.2026
 
 ### Fixed
