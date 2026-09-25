@@ -2,9 +2,9 @@
 cls
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title GlobalUpgrade 1.01
+title GlobalUpgrade 1.02
 
-set "GU_VERSION=1.01"
+set "GU_VERSION=1.02"
 set "OWNER=Suenee"
 set "SELF_REPO=GlobalUpgrade"
 set "TARGET_BRANCH=main"
@@ -30,9 +30,10 @@ if errorlevel 1 (
   exit /b 10
 )
 
-rem Use START /WAIT so the repository batch never continues reading
-rem after the temporary runner may have replaced it.
-start "" /wait cmd /d /c ""%TEMP_LAUNCHER%" --temp-runner "%REPO_DIR%""
+rem Run the temporary launcher synchronously in this SAME console.
+rem CALL transfers execution safely because the child is outside the mutable
+rem repository tree. The repository launcher performs no mutable-tree work.
+call "%TEMP_LAUNCHER%" --temp-runner "%REPO_DIR%"
 set "RC=%ERRORLEVEL%"
 del /q "%TEMP_LAUNCHER%" >nul 2>&1
 exit /b %RC%
