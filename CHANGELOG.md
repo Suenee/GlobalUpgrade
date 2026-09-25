@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.07] - 25.09.2026
+
+### Changed
+- Added per-repository discovery diagnostics.
+- Discovery now prints the number of public repositories returned by GitHub, selected branch logic, and the exact HTTP/status/error for each attempted `upgrade.cmd`.
+- This diagnostic release does not change the repository-processing architecture.
+
+
 ## [1.06] - 25.09.2026
 
 ### Changed
