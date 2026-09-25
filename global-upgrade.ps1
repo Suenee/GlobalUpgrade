@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.10'
+$Version = '1.11'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -61,6 +61,7 @@ function Get-ManagedRepositories {
     Write-Host ("[DISCOVERY] Public repositories returned by GitHub: {0}" -f $all.Count)
     foreach($x in $all){
         $b=$x.default_branch
+        Write-Host ''
         Write-Host ("[DISCOVERY] Checking {0}; default={1}" -f $x.name,$b)
 
         try {
@@ -127,6 +128,7 @@ if($managed.Count -eq 0){
 
 foreach($item in $managed){
     $name=$item.Name; $selected=$item.Branch; $dir=Join-Path $root $name
+    Write-Host ''
     Write-Host "[$name] Checking..."
     $old=if(Test-Path -LiteralPath $dir){Get-Version $dir}else{''}
     $install=-not (Test-Path -LiteralPath (Join-Path $dir '.git'))
@@ -164,6 +166,7 @@ foreach($item in $managed){
     }
 }
 
+Write-Host ''
 Write-Host "GLOBAL UPGRADE $Version"
 Write-Host ('='*90)
 Write-Host ('{0,-34} {1,-12} {2,-12} {3,-12} {4}' -f 'Repository','Old','Version','Status','Result')
