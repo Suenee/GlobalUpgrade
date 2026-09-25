@@ -34,10 +34,29 @@ function Set-SafeDirectory([string]$Path) {
 
 function Get-Version([string]$Path) {
     $vf=Join-Path $Path 'VERSION'
-    if(Test-Path -LiteralPath $vf){ return (Get-Content -LiteralPath $vf -TotalCount 1).Trim() }
+    if(Test-Path -LiteralPath $vf){
+        $v=(Get-Content -LiteralPath $vf -TotalCount 1).Trim()
+        if($v){ return $v }
+    }
     $pj=Join-Path $Path 'package.json'
     if(Test-Path -LiteralPath $pj){
         try { $v=(Get-Content -Raw -LiteralPath $pj | ConvertFrom-Json).version; if($v){return "$v"} } catch {}
+    }
+    $props=Join-Path $Path 'Directory.Build.props'
+    if(Test-Path -LiteralPath $props){
+        try {
+            [xml]$xml=Get-Content -Raw -LiteralPath $props
+            $v=@($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
+            if($v){ return "$v" }
+        } catch {}
+    }
+    $csproj=Get-ChildItem -LiteralPath $Path -Filter *.csproj -File -ErrorAction SilentlyContinue | Select-Object -First 1
+    if($csproj){
+        try {
+            [xml]$xml=Get-Content -Raw -LiteralPath $csproj.FullName
+            $v=@($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
+            if($v){ return "$v" }
+        } catch {}
     }
     return ''
 }
