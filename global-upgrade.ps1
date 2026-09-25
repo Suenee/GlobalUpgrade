@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.08'
+$Version = '1.09'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -87,7 +87,7 @@ function Get-ManagedRepositories {
 function Install-AuthoritativeUpdater([string]$Name,[string]$SelectedBranch,[string]$LocalDir) {
     $uri="https://raw.githubusercontent.com/$Owner/$Name/$SelectedBranch/upgrade.cmd"
     $text=(Invoke-WebRequest -UseBasicParsing -Headers $Headers -Uri $uri).Content
-    $text=$text -replace "\r?\n","\r\n"
+    $text=[Text.RegularExpressions.Regex]::Replace($text, '\r?\n', "`r`n")
     [IO.File]::WriteAllText((Join-Path $LocalDir 'upgrade.cmd'),$text,(New-Object Text.UTF8Encoding($false)))
 }
 
@@ -171,7 +171,14 @@ Write-Host ('-'*90)
 $ok=0;$fail=0
 foreach($r in $results){
     $line=('{0,-34} {1,-12} {2,-12} {3,-12} {4}' -f $r.Repository,$r.Old,$r.Version,$r.Status,$r.Result)
-    if($r.Result -eq 'OK'){Write-Host $line -ForegroundColor Green;$ok++}else{Write-Host $line -ForegroundColor Red;$fail++}
+    if($r.Result -eq 'OK'){
+        if($r.Status -eq 'INSTALLED'){ Write-Host $line -ForegroundColor Blue }
+        else { Write-Host $line -ForegroundColor Green }
+        $ok++
+    } else {
+        Write-Host $line -ForegroundColor Red
+        $fail++
+    }
 }
 Write-Host ('-'*90)
 Write-Host ''
