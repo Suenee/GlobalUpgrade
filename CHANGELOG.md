@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.04] - 25.09.2026
+
+### Changed
+- Replaced the large batch implementation with the documented tiny-launcher / authoritative-PowerShell-runner architecture.
+- `global-upgrade.cmd` now fetches `origin/main`, extracts the current `global-upgrade.ps1` to a unique temporary file, and executes that immutable temporary runner.
+- Repository synchronization can no longer replace the code currently executing.
+- Repository processing and summary generation now run in PowerShell, removing CMD block-expansion and pseudo-tab parsing hazards.
+- Preserved process-scoped exact Git `safe.directory` support for mapped/network repositories.
+
+### Fixed
+- Removed the unsafe self-update restart path that could lose the repository path after `git reset --hard`.
+- Removed the old launcher-to-launcher `CALL` self-replacement design.
+
+
 ## [1.03] - 25.09.2026
 
 ### Fixed
