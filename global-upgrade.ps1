@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.05'
+$Version = '1.06'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -111,6 +111,12 @@ $results=New-Object System.Collections.Generic.List[object]
 Write-Host 'Discovering managed repositories...'
 try { $managed=@(Get-ManagedRepositories) }
 catch { throw "GitHub repository discovery failed: $($_.Exception.Message)" }
+
+Write-Host ("[DISCOVERY] Managed repositories found: {0}" -f $managed.Count)
+foreach($m in $managed){ Write-Host ("[DISCOVERY] {0} [{1}]" -f $m.Name,$m.Branch) }
+if($managed.Count -eq 0){
+    Write-Host '[DISCOVERY] ERROR: No managed repositories were detected.' -ForegroundColor Red
+}
 
 foreach($item in $managed){
     $name=$item.Name; $selected=$item.Branch; $dir=Join-Path $root $name
