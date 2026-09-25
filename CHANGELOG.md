@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.09] - 25.09.2026
+
+### Fixed
+- Fixed authoritative `upgrade.cmd` downloads writing literal `\\r\\n` text instead of real Windows CRLF line endings.
+
+### Changed
+- Successful fresh installations are shown in blue in the final summary.
+- Failed installations and failed updates remain red.
+- Successful current/updated repositories remain green.
+- Detailed discovery diagnostics remain enabled temporarily.
+
+
 ## [1.08] - 25.09.2026
 
 ### Fixed
