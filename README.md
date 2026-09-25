@@ -6,7 +6,7 @@ It discovers public repositories directly from GitHub and manages only projects 
 
 ## Version
 
-Current version: **1.05**
+Current version: **1.06**
 
 ## Requirements
 
@@ -58,7 +58,7 @@ The console is cleared immediately at startup. After self-update and project pro
 ## Result table
 
 ```text
-GLOBAL UPGRADE 1.05
+GLOBAL UPGRADE 1.06
 ==========================================================================================
 Repository                         Old          Version      Status       Result
 ------------------------------------------------------------------------------------------
