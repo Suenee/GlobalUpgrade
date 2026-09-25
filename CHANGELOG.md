@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11] - 25.09.2026
+
+### Changed
+- Added blank lines between diagnostic sections and individual repository checks for easier console reading.
+- Detailed discovery diagnostics remain enabled and the console is still not cleared before the final summary.
+
+
 ## [1.10] - 25.09.2026
 
 ### Changed
