@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.13] - 25.09.2026
+
+### Fixed
+- Child updater execution now uses a waited child process with an explicit exit code.
+- A project update is not accepted as successful unless the local repository HEAD matches the selected remote branch after the updater returns.
+- Improved project version detection by reading `VERSION`, `package.json`, `Directory.Build.props`, or a root `.csproj` when available.
+
+
 ## [1.12] - 25.09.2026
 
 ### Fixed
