@@ -2,9 +2,9 @@
 cls
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title GlobalUpgrade 1.02
+title GlobalUpgrade 1.03
 
-set "GU_VERSION=1.02"
+set "GU_VERSION=1.03"
 set "OWNER=Suenee"
 set "SELF_REPO=GlobalUpgrade"
 set "TARGET_BRANCH=main"
@@ -157,10 +157,15 @@ rem ============================================================
 echo Discovering managed repositories...
 
 set "REPO_LIST=%TMP_DIR%\repositories.tsv"
+set "DISCOVERY_ERR=%TMP_DIR%\discovery-error.txt"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$ErrorActionPreference='Stop'; $h=@{'User-Agent'='GlobalUpgrade/%GU_VERSION%'}; $page=1; $all=@(); do { $u='https://api.github.com/users/%OWNER%/repos?per_page=100&page='+$page; $r=@(Invoke-RestMethod -UseBasicParsing -Headers $h -Uri $u); $all += $r; $page++ } while($r.Count -eq 100); foreach($x in $all){ $d=$x.default_branch; try { Invoke-RestMethod -UseBasicParsing -Headers $h -Uri ('https://api.github.com/repos/%OWNER%/'+$x.name+'/branches/devel') | Out-Null; $b='devel' } catch { $b=$d }; try { Invoke-WebRequest -UseBasicParsing -Headers $h -Uri ('https://raw.githubusercontent.com/%OWNER%/'+$x.name+'/'+$b+'/upgrade.cmd') -Method Head | Out-Null; [Console]::Out.WriteLine($x.name+[char]9+$b) } catch {} }" > "%REPO_LIST%"
+  "$ErrorActionPreference='Stop'; try { $h=@{'User-Agent'='GlobalUpgrade/%GU_VERSION%';'Accept'='application/vnd.github+json'}; $page=1; $all=@(); do { $u='https://api.github.com/users/%OWNER%/repos?per_page=100&page='+$page; $r=@(Invoke-RestMethod -UseBasicParsing -Headers $h -Uri $u); $all += $r; $page++ } while($r.Count -eq 100); foreach($x in $all){ $b=$x.default_branch; try { Invoke-RestMethod -UseBasicParsing -Headers $h -Uri ('https://api.github.com/repos/%OWNER%/'+$x.name+'/branches/devel') | Out-Null; $b='devel' } catch { if($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -ne 404){ throw } }; try { Invoke-RestMethod -UseBasicParsing -Headers $h -Uri ('https://api.github.com/repos/%OWNER%/'+$x.name+'/contents/upgrade.cmd?ref='+$b) | Out-Null; [Console]::Out.WriteLine($x.name+[char]9+$b) } catch { if($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -ne 404){ throw } } } } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }" > "%REPO_LIST%" 2> "%DISCOVERY_ERR%"
 if errorlevel 1 (
   echo ERROR: GitHub repository discovery failed.
+  if exist "%DISCOVERY_ERR%" (
+    echo.
+    type "%DISCOVERY_ERR%"
+  )
   rd /s /q "%TMP_DIR%" >nul 2>&1
   popd
   exit /b 23
