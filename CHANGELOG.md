@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.15] - 25.09.2026
+
+### Fixed
+- Recover failed-upgrade state from each project's existing `logs/upgrade.log`, so failures from runs before the GlobalUpgrade state marker existed are retried instead of reported as current.
+- Detect application versions from nested project files when version metadata is not stored at the repository root.
+- Nested `.csproj` discovery ignores common build and test directories and prefers repository-matching and shallower application projects.
+
+
 ## [1.14] - 25.09.2026
 
 ### Fixed
