@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.03] - 25.09.2026
+
+### Fixed
+- Replaced unreliable raw-content HEAD probing during repository discovery with the GitHub Contents API.
+- A missing `devel` branch or `upgrade.cmd` is treated as the expected opt-out condition; other GitHub API errors are no longer silently swallowed.
+- Discovery failures now print the actual PowerShell/GitHub error message for diagnostics.
+
+
 ## [1.02] - 25.09.2026
 
 ### Fixed
