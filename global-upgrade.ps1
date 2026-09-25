@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.14'
+$Version = '1.15'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -50,8 +50,13 @@ function Get-Version([string]$Path) {
             if($v){ return "$v" }
         } catch {}
     }
-    $csproj=Get-ChildItem -LiteralPath $Path -Filter *.csproj -File -ErrorAction SilentlyContinue | Select-Object -First 1
-    if($csproj){
+
+    # Application projects are often below the repository root (for example source/<app>/<app>.csproj).
+    # Prefer a project whose filename matches the repository directory name, then shallowest project path.
+    $projects=@(Get-ChildItem -LiteralPath $Path -Filter *.csproj -File -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '[\\/](bin|obj|build|packages|tests?)[\\/]' } |
+        Sort-Object @{Expression={ if($_.BaseName -eq (Split-Path -Leaf $Path)){0}else{1} }}, @{Expression={ ($_.FullName.Substring($Path.Length) -split '[\\/]').Count }}, FullName)
+    foreach($csproj in $projects){
         try {
             [xml]$xml=Get-Content -Raw -LiteralPath $csproj.FullName
             $v=@($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
@@ -59,6 +64,17 @@ function Get-Version([string]$Path) {
         } catch {}
     }
     return ''
+}
+
+function Test-PreviousUpgradeFailed([string]$LocalDir) {
+    $log=Join-Path $LocalDir 'logs\upgrade.log'
+    if(-not (Test-Path -LiteralPath $log -PathType Leaf)){ return $false }
+    try {
+        $tail=@(Get-Content -LiteralPath $log -Tail 80 -ErrorAction Stop)
+        $status=@($tail | Where-Object { $_ -match '^STATUS:\s+' } | Select-Object -Last 1)
+        if($status.Count -gt 0 -and [string]$status[0] -match '^STATUS:\s+FAILED\b'){ return $true }
+    } catch {}
+    return $false
 }
 
 function Get-HttpStatus($Exception) {
@@ -174,7 +190,8 @@ foreach($item in $managed){
                 $lh=(Invoke-Git @('rev-parse','HEAD') $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
                 $rh=(Invoke-Git @('rev-parse',"origin/$selected") $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
                 $needs=($lh -ne $rh)
-                if((Test-Path -LiteralPath $failureMarker) -and -not $needs){
+                $previousFailed=(Test-Path -LiteralPath $failureMarker) -or (Test-PreviousUpgradeFailed $dir)
+                if($previousFailed -and -not $needs){
                     Write-Host "[$name] Previous upgrade attempt failed; retrying the current remote revision." -ForegroundColor Yellow
                     $needs=$true
                 }
