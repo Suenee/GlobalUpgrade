@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.15'
+$Version = '1.16'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -32,37 +32,98 @@ function Set-SafeDirectory([string]$Path) {
     $env:GIT_CONFIG_VALUE_0=$Path
 }
 
+function Normalize-Version([string]$Value) {
+    if([string]::IsNullOrWhiteSpace($Value)){ return '' }
+    $text=$Value.Trim()
+    $m=[regex]::Match($text,'(?<!\d)(\d+)\.(\d+)(?:\.(\d+))?')
+    if(-not $m.Success){ return $text }
+    if($m.Groups[3].Success -and $m.Groups[3].Value -ne '0'){
+        return ('{0}.{1}.{2}' -f $m.Groups[1].Value,$m.Groups[2].Value,$m.Groups[3].Value)
+    }
+    return ('{0}.{1}' -f $m.Groups[1].Value,$m.Groups[2].Value)
+}
+
+function Get-VersionFromProjectFile([string]$ProjectFile) {
+    try {
+        [xml]$xml=Get-Content -Raw -LiteralPath $ProjectFile
+        $v=@($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
+        if($v){ return (Normalize-Version ([string]$v[0])) }
+    } catch {}
+    return ''
+}
+
 function Get-Version([string]$Path) {
-    $vf=Join-Path $Path 'VERSION'
-    if(Test-Path -LiteralPath $vf){
-        $v=(Get-Content -LiteralPath $vf -TotalCount 1).Trim()
-        if($v){ return $v }
-    }
-    $pj=Join-Path $Path 'package.json'
-    if(Test-Path -LiteralPath $pj){
-        try { $v=(Get-Content -Raw -LiteralPath $pj | ConvertFrom-Json).version; if($v){return "$v"} } catch {}
-    }
-    $props=Join-Path $Path 'Directory.Build.props'
-    if(Test-Path -LiteralPath $props){
-        try {
-            [xml]$xml=Get-Content -Raw -LiteralPath $props
-            $v=@($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
-            if($v){ return "$v" }
-        } catch {}
+    if(-not (Test-Path -LiteralPath $Path -PathType Container)){ return '' }
+
+    foreach($name in @('VERSION','version.txt')){
+        $vf=Join-Path $Path $name
+        if(Test-Path -LiteralPath $vf){
+            try {
+                $v=Normalize-Version ((Get-Content -LiteralPath $vf -TotalCount 1).Trim())
+                if($v){ return $v }
+            } catch {}
+        }
     }
 
-    # Application projects are often below the repository root (for example source/<app>/<app>.csproj).
-    # Prefer a project whose filename matches the repository directory name, then shallowest project path.
-    $projects=@(Get-ChildItem -LiteralPath $Path -Filter *.csproj -File -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -notmatch '[\\/](bin|obj|build|packages|tests?)[\\/]' } |
-        Sort-Object @{Expression={ if($_.BaseName -eq (Split-Path -Leaf $Path)){0}else{1} }}, @{Expression={ ($_.FullName.Substring($Path.Length) -split '[\\/]').Count }}, FullName)
-    foreach($csproj in $projects){
-        try {
-            [xml]$xml=Get-Content -Raw -LiteralPath $csproj.FullName
-            $v=@($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
-            if($v){ return "$v" }
-        } catch {}
+    foreach($name in @('package.json','manifest.json')){
+        $jsonPath=Join-Path $Path $name
+        if(Test-Path -LiteralPath $jsonPath){
+            try {
+                $obj=Get-Content -Raw -LiteralPath $jsonPath | ConvertFrom-Json
+                $v=Normalize-Version ([string]$obj.version)
+                if($v){ return $v }
+            } catch {}
+        }
     }
+
+    $props=Join-Path $Path 'Directory.Build.props'
+    if(Test-Path -LiteralPath $props){
+        $v=Get-VersionFromProjectFile $props
+        if($v){ return $v }
+    }
+
+    # Prefer application projects over helper/test projects. Search only likely source trees.
+    $candidateRoots=@($Path)
+    foreach($sub in @('source','src','app')){
+        $p=Join-Path $Path $sub
+        if(Test-Path -LiteralPath $p -PathType Container){ $candidateRoots += $p }
+    }
+
+    $repoName=Split-Path -Leaf $Path
+    $projects=New-Object System.Collections.Generic.List[object]
+    foreach($root in $candidateRoots | Select-Object -Unique){
+        Get-ChildItem -LiteralPath $root -Filter *.csproj -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '[\\/](bin|obj|build|packages|test|tests|testing)[\\/]' } |
+            ForEach-Object {
+                $depth=(($_.DirectoryName.Substring($Path.Length)).TrimStart('\\') -split '[\\/]').Count
+                $score=100
+                if($_.BaseName -ieq $repoName){ $score-=50 }
+                if($_.BaseName -match '(?i)(test|tests|cli|tool|helper|core|library|bridge)$'){ $score+=30 }
+                if($_.FullName -match '(?i)[\\/](source|src)[\\/]'){ $score-=10 }
+                $score += $depth
+                $projects.Add([pscustomobject]@{File=$_;Score=$score})
+            }
+    }
+    foreach($p in @($projects | Sort-Object Score,@{Expression={$_.File.FullName}})){
+        $v=Get-VersionFromProjectFile $p.File.FullName
+        if($v){ return $v }
+    }
+
+    # Last resort for script projects: inspect likely root metadata files, not build outputs.
+    foreach($name in @('pyproject.toml','setup.cfg','setup.py')){
+        $file=Join-Path $Path $name
+        if(Test-Path -LiteralPath $file){
+            try {
+                $text=Get-Content -Raw -LiteralPath $file
+                $m=[regex]::Match($text,'(?im)^\s*(?:version|__version__)\s*=\s*["'']([^"'']+)["'']')
+                if($m.Success){
+                    $v=Normalize-Version $m.Groups[1].Value
+                    if($v){ return $v }
+                }
+            } catch {}
+        }
+    }
+
     return ''
 }
 
