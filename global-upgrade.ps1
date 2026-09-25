@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.09'
+$Version = '1.10'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -173,6 +173,7 @@ foreach($r in $results){
     $line=('{0,-34} {1,-12} {2,-12} {3,-12} {4}' -f $r.Repository,$r.Old,$r.Version,$r.Status,$r.Result)
     if($r.Result -eq 'OK'){
         if($r.Status -eq 'INSTALLED'){ Write-Host $line -ForegroundColor Blue }
+        elseif($r.Status -eq 'CURRENT'){ Write-Host $line -ForegroundColor Yellow }
         else { Write-Host $line -ForegroundColor Green }
         $ok++
     } else {
