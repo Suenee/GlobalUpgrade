@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.08] - 25.09.2026
+
+### Fixed
+- Fixed Windows PowerShell repository enumeration wrapping the GitHub response as a single nested `System.Object[]`.
+- Normalized GitHub REST repository responses before discovery so each repository is processed as an individual object.
+- Kept detailed discovery diagnostics enabled temporarily.
+
+
 ## [1.07] - 25.09.2026
 
 ### Changed
