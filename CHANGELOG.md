@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.16] - 25.09.2026
+
+### Fixed
+- Expanded version discovery to support root `manifest.json`, `version.txt`, nested application `.csproj` files, and common Python metadata files.
+- Prefer likely application projects over test, CLI, helper, core, and library projects when multiple `.csproj` files exist.
+- Normalize semantic versions so trailing zero patch values such as `0.54.0` are displayed as `0.54`.
+
+
 ## [1.15] - 25.09.2026
 
 ### Fixed
