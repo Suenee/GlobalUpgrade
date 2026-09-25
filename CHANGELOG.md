@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.05] - 25.09.2026
+
+### Fixed
+- Fixed managed-repository discovery returning an empty set on Windows PowerShell 5.1.
+- Missing `devel` branches now reliably fall back to each repository's GitHub default branch.
+- Repository opt-in is verified by a real GET of the authoritative raw `upgrade.cmd`; a missing file excludes only that repository and does not abort discovery.
+- Kept the 1.04 temporary PowerShell runner architecture unchanged.
+
+
 ## [1.04] - 25.09.2026
 
 ### Changed
