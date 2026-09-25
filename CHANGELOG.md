@@ -2,6 +2,9 @@
 
 ## [1.05] - 25.09.2026
 
+### Changed
+- Temporarily disabled the console clear immediately before the final summary table so diagnostic output remains visible.
+
 ### Fixed
 - Fixed managed-repository discovery returning an empty set on Windows PowerShell 5.1.
 - Missing `devel` branches now reliably fall back to each repository's GitHub default branch.
