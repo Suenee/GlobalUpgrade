@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.02] - 25.09.2026
+
+### Fixed
+- Self-update handoff no longer uses `START`, so GlobalUpgrade remains in the original console window.
+- The temporary launcher is invoked synchronously with `CALL`; all mutable repository operations remain outside the repository copy of the running script.
+- The original launcher only receives the final exit code, removes its temporary launcher, and exits.
+
+
 All notable changes to this project are documented in this file.
 
 ## [1.01] - 25.09.2026
