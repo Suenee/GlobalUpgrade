@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.06'
+$Version = '1.07'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -53,26 +53,28 @@ function Get-ManagedRepositories {
         $all += $r; $page++
     } while($r.Count -eq 100)
 
+    Write-Host ("[DISCOVERY] Public repositories returned by GitHub: {0}" -f $all.Count)
     foreach($x in $all){
         $b=$x.default_branch
+        Write-Host ("[DISCOVERY] Checking {0}; default={1}" -f $x.name,$b)
+
         try {
             Invoke-RestMethod -UseBasicParsing -Headers $Headers -Uri "$GitHubApi/repos/$Owner/$($x.name)/branches/devel" | Out-Null
             $b='devel'
+            Write-Host ("[DISCOVERY] {0}: using devel" -f $x.name)
         } catch {
-            # A missing devel branch is expected; GitHub/PowerShell may expose
-            # HTTP status inconsistently, so fall back to the default branch.
-            $b=$x.default_branch
+            Write-Host ("[DISCOVERY] {0}: devel unavailable, using {1}" -f $x.name,$b)
         }
 
-        # Test opt-in with raw content. A successful GET proves upgrade.cmd exists.
-        # A missing file simply means the repository is unmanaged.
         $upgradeUri="https://raw.githubusercontent.com/$Owner/$($x.name)/$b/upgrade.cmd"
         try {
-            $null=(Invoke-WebRequest -UseBasicParsing -Headers $Headers -Uri $upgradeUri).Content
+            $resp=Invoke-WebRequest -UseBasicParsing -Headers $Headers -Uri $upgradeUri
+            Write-Host ("[DISCOVERY] {0}: upgrade.cmd HTTP {1}" -f $x.name,$resp.StatusCode)
             [pscustomobject]@{Name=$x.name;Branch=$b}
         } catch {
-            # Ignore only this repository. Discovery of the remaining repositories
-            # must continue even when upgrade.cmd is absent.
+            $status=Get-HttpStatus $_.Exception
+            if($status -eq 0){ $status='n/a' }
+            Write-Host ("[DISCOVERY] {0}: upgrade.cmd not usable; HTTP/status={1}; {2}" -f $x.name,$status,$_.Exception.Message)
         }
     }
 }
