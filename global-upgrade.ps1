@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.20'
+$Version = '1.21'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -136,16 +136,19 @@ function Get-Version([string]$Path) {
         } catch {}
     }
 
-    foreach($changelogName in @('CHANGELOG.md','changelog.md')){
-        $changelog=Join-Path $Path $changelogName
-        if(Test-Path -LiteralPath $changelog){
-            try {
-                foreach($line in Get-Content -LiteralPath $changelog -TotalCount 250){
-                    $m=[regex]::Match($line,'^\s*#{1,6}\s+(?:\[)?v?(\d+\.\d+(?:\.\d+)?)(?:\])?(?:\s|$|\s*[-(])')
-                    if($m.Success){ Add-VersionCandidate $candidates $m.Groups[1].Value $changelogName }
-                }
-            } catch {}
-        }
+    $changelogs=@()
+    foreach($standardName in @('CHANGELOG.md','changelog.md')){
+        $file=Join-Path $Path $standardName
+        if(Test-Path -LiteralPath $file -PathType Leaf){ $changelogs += Get-Item -LiteralPath $file }
+    }
+    $changelogs += @(Get-ChildItem -LiteralPath $Path -File -Filter '*CHANGELOG.md' -ErrorAction SilentlyContinue)
+    foreach($changelog in @($changelogs | Sort-Object FullName -Unique)){
+        try {
+            foreach($line in Get-Content -LiteralPath $changelog.FullName -TotalCount 250){
+                $m=[regex]::Match($line,'^\s*#{1,6}\s+(?:\[)?v?(\d+\.\d+(?:\.\d+)?)(?:\])?(?:\s|$|\s*[-(])')
+                if($m.Success){ Add-VersionCandidate $candidates $m.Groups[1].Value $changelog.Name }
+            }
+        } catch {}
     }
 
     if($candidates.Count -eq 0){ return '' }
