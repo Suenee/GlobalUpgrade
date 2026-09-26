@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.18] - 26.09.2026
+
+### Changed
+- Version detection now collects candidates from all supported metadata sources instead of returning the first match.
+- Added application-version detection from `upgrade.ps1` variables `$Version`, `$AppVersion`, and `$ExpectedVersion`.
+- Added release-version detection from `CHANGELOG.md` / `changelog.md` headings.
+- The highest numeric version candidate is displayed when metadata sources disagree.
+- GitHub branch HEAD remains authoritative for deciding whether `upgrade.cmd` must run; version metadata does not suppress repository updates.
+
+
 ## [1.17] - 25.09.2026
 
 ### Diagnostics
