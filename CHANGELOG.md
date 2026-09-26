@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.21] - 26.09.2026
+
+### Fixed
+- Version detection now recognizes root-level project-prefixed changelog files such as `YTPrintScreen_CHANGELOG.md`, in addition to standard `CHANGELOG.md` names.
+- Release versions are still accepted only from Markdown release headings, avoiding arbitrary version-like numbers in changelog text.
+
+
 ## [1.20] - 26.09.2026
 
 ### Fixed
