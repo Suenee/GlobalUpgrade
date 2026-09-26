@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.19] - 26.09.2026
+
+### Added
+- Added a compact pre-table update summary for repositories that were updated, installed, retried, or failed.
+- The summary records why `upgrade.cmd` was started and reports the concrete failure detected by GlobalUpgrade.
+
+### Fixed
+- Restored application-project selection for .NET repositories before adding a `.csproj` version candidate, preventing unrelated higher project versions from overriding the main application version.
+- GitHub branch HEAD remains authoritative for deciding whether an update is required.
+
+
 ## [1.18] - 26.09.2026
 
 ### Changed
