@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.17'
+$Version = '1.18'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -43,88 +43,100 @@ function Normalize-Version([string]$Value) {
     return ('{0}.{1}' -f $m.Groups[1].Value,$m.Groups[2].Value)
 }
 
-function Get-VersionFromProjectFile([string]$ProjectFile) {
+function Add-VersionCandidate {
+    param([System.Collections.Generic.List[object]]$Candidates,[string]$Value,[string]$Source)
+    if([string]::IsNullOrWhiteSpace($Value)){ return }
+    $m=[regex]::Match($Value.Trim(),'(?<!\d)(\d+)\.(\d+)(?:\.(\d+))?')
+    if(-not $m.Success){ return }
+    $major=[int]$m.Groups[1].Value
+    $minor=[int]$m.Groups[2].Value
+    $patch=if($m.Groups[3].Success){[int]$m.Groups[3].Value}else{0}
+    $display=if($patch -ne 0){ "$major.$minor.$patch" }else{ "$major.$minor" }
+    $Candidates.Add([pscustomobject]@{Version=$display;Major=$major;Minor=$minor;Patch=$patch;Source=$Source})
+}
+
+function Add-ProjectFileVersionCandidate {
+    param([System.Collections.Generic.List[object]]$Candidates,[string]$ProjectFile,[string]$Source)
     try {
         [xml]$xml=Get-Content -Raw -LiteralPath $ProjectFile
-        $v=@($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
-        if($v){ return (Normalize-Version ([string]$v[0])) }
+        foreach($v in @($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ })){
+            Add-VersionCandidate $Candidates ([string]$v) $Source
+        }
     } catch {}
-    return ''
 }
 
 function Get-Version([string]$Path) {
     if(-not (Test-Path -LiteralPath $Path -PathType Container)){ return '' }
+    $candidates=New-Object 'System.Collections.Generic.List[object]'
 
     foreach($name in @('VERSION','version.txt')){
-        $vf=Join-Path $Path $name
-        if(Test-Path -LiteralPath $vf){
-            try {
-                $v=Normalize-Version ((Get-Content -LiteralPath $vf -TotalCount 1).Trim())
-                if($v){ return $v }
-            } catch {}
+        $file=Join-Path $Path $name
+        if(Test-Path -LiteralPath $file){
+            try { Add-VersionCandidate $candidates ((Get-Content -LiteralPath $file -TotalCount 1).Trim()) $name } catch {}
         }
     }
 
     foreach($name in @('package.json','manifest.json')){
-        $jsonPath=Join-Path $Path $name
-        if(Test-Path -LiteralPath $jsonPath){
+        $file=Join-Path $Path $name
+        if(Test-Path -LiteralPath $file){
             try {
-                $obj=Get-Content -Raw -LiteralPath $jsonPath | ConvertFrom-Json
-                $v=Normalize-Version ([string]$obj.version)
-                if($v){ return $v }
+                $obj=Get-Content -Raw -LiteralPath $file | ConvertFrom-Json
+                Add-VersionCandidate $candidates ([string]$obj.version) $name
             } catch {}
         }
     }
 
     $props=Join-Path $Path 'Directory.Build.props'
-    if(Test-Path -LiteralPath $props){
-        $v=Get-VersionFromProjectFile $props
-        if($v){ return $v }
-    }
+    if(Test-Path -LiteralPath $props){ Add-ProjectFileVersionCandidate $candidates $props 'Directory.Build.props' }
 
-    # Prefer application projects over helper/test projects. Search only likely source trees.
     $candidateRoots=@($Path)
     foreach($sub in @('source','src','app')){
         $p=Join-Path $Path $sub
         if(Test-Path -LiteralPath $p -PathType Container){ $candidateRoots += $p }
     }
-
-    $repoName=Split-Path -Leaf $Path
-    $projects=New-Object System.Collections.Generic.List[object]
     foreach($root in $candidateRoots | Select-Object -Unique){
         Get-ChildItem -LiteralPath $root -Filter *.csproj -File -Recurse -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -notmatch '[\\/](bin|obj|build|packages|test|tests|testing)[\\/]' } |
-            ForEach-Object {
-                $depth=(($_.DirectoryName.Substring($Path.Length)).TrimStart('\\') -split '[\\/]').Count
-                $score=100
-                if($_.BaseName -ieq $repoName){ $score-=50 }
-                if($_.BaseName -match '(?i)(test|tests|cli|tool|helper|core|library|bridge)$'){ $score+=30 }
-                if($_.FullName -match '(?i)[\\/](source|src)[\\/]'){ $score-=10 }
-                $score += $depth
-                $projects.Add([pscustomobject]@{File=$_;Score=$score})
-            }
-    }
-    foreach($p in @($projects | Sort-Object Score,@{Expression={$_.File.FullName}})){
-        $v=Get-VersionFromProjectFile $p.File.FullName
-        if($v){ return $v }
+            ForEach-Object { Add-ProjectFileVersionCandidate $candidates $_.FullName ('csproj:' + $_.Name) }
     }
 
-    # Last resort for script projects: inspect likely root metadata files, not build outputs.
     foreach($name in @('pyproject.toml','setup.cfg','setup.py')){
         $file=Join-Path $Path $name
         if(Test-Path -LiteralPath $file){
             try {
                 $text=Get-Content -Raw -LiteralPath $file
-                $m=[regex]::Match($text,'(?im)^\s*(?:version|__version__)\s*=\s*["'']([^"'']+)["'']')
-                if($m.Success){
-                    $v=Normalize-Version $m.Groups[1].Value
-                    if($v){ return $v }
+                foreach($m in [regex]::Matches($text,'(?im)^\s*(?:version|__version__)\s*=\s*["'']([^"'']+)["'']')){
+                    Add-VersionCandidate $candidates $m.Groups[1].Value $name
                 }
             } catch {}
         }
     }
 
-    return ''
+    $upgrade=Join-Path $Path 'upgrade.ps1'
+    if(Test-Path -LiteralPath $upgrade){
+        try {
+            $text=Get-Content -Raw -LiteralPath $upgrade
+            foreach($m in [regex]::Matches($text,'(?im)^\s*\$(?:Version|AppVersion|ExpectedVersion)\s*=\s*["'']([^"'']+)["'']')){
+                Add-VersionCandidate $candidates $m.Groups[1].Value 'upgrade.ps1'
+            }
+        } catch {}
+    }
+
+    foreach($changelogName in @('CHANGELOG.md','changelog.md')){
+        $changelog=Join-Path $Path $changelogName
+        if(Test-Path -LiteralPath $changelog){
+            try {
+                foreach($line in Get-Content -LiteralPath $changelog -TotalCount 250){
+                    $m=[regex]::Match($line,'^\s*#{1,6}\s+(?:\[)?v?(\d+\.\d+(?:\.\d+)?)(?:\])?(?:\s|$|\s*[-(])')
+                    if($m.Success){ Add-VersionCandidate $candidates $m.Groups[1].Value $changelogName }
+                }
+            } catch {}
+        }
+    }
+
+    if($candidates.Count -eq 0){ return '' }
+    $best=$candidates | Sort-Object @{Expression='Major';Descending=$true},@{Expression='Minor';Descending=$true},@{Expression='Patch';Descending=$true} | Select-Object -First 1
+    return [string]$best.Version
 }
 
 function Test-PreviousUpgradeFailed([string]$LocalDir) {
