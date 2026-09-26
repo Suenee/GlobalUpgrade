@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.20] - 26.09.2026
+
+### Fixed
+- Fixed malformed PowerShell source introduced in 1.19 while patching .NET project-version selection.
+- Removed an accidentally appended duplicate source fragment after the script exit block.
+- Preserved the 1.19 update-reason summary and application-project version selection.
+
+
 ## [1.19] - 26.09.2026
 
 ### Added
