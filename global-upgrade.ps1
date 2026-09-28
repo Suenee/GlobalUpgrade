@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.21'
+$Version = '1.22'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -213,7 +213,13 @@ function Get-ManagedRepositories {
 function Invoke-ProjectUpdater([string]$LocalDir) {
     $launcher=Join-Path $LocalDir 'upgrade.cmd'
     if(-not (Test-Path -LiteralPath $launcher -PathType Leaf)){ throw "upgrade.cmd is missing: $launcher" }
-    $proc=Start-Process -FilePath $env:ComSpec -ArgumentList @('/d','/c','call upgrade.cmd') -WorkingDirectory $LocalDir -NoNewWindow -Wait -PassThru
+
+    # Do not use Start-Process -Wait here. On Windows, -Wait can wait for the
+    # entire descendant process tree. Some project updaters intentionally
+    # restart long-lived applications (for example Total Commander), which
+    # would keep GlobalUpgrade blocked even after upgrade.cmd itself exited.
+    $proc=Start-Process -FilePath $env:ComSpec -ArgumentList @('/d','/c','call upgrade.cmd') -WorkingDirectory $LocalDir -NoNewWindow -PassThru
+    $proc.WaitForExit()
     return [int]$proc.ExitCode
 }
 
