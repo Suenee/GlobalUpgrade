@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.22'
+$Version = '1.23'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -274,8 +274,19 @@ foreach($item in $managed){
     $old=if(Test-Path -LiteralPath $dir){Get-Version $dir}else{''}
     $install=-not (Test-Path -LiteralPath (Join-Path $dir '.git'))
     try {
+        if(-not $install){
+            Set-SafeDirectory $dir
+            $localBranch=(Invoke-Git @('branch','--show-current') $dir -Capture).Trim()
+            if($localBranch){
+                $selected=$localBranch
+                Write-Host "[$name] Local repository active branch: $selected."
+            } else {
+                Write-Host "[$name] Detached HEAD; using discovered branch: $selected." -ForegroundColor Yellow
+            }
+        }
         if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }
         if($install){
+            Write-Host "[$name] Fresh install will use discovered branch: $selected."
             Install-AuthoritativeUpdater $name $selected $dir
         }
         $needs=$install
@@ -315,10 +326,17 @@ foreach($item in $managed){
                 $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status=if($install){'INSTALL'}else{'UPDATE'};Result='FAIL'})
                 continue
             }
-            if(-not $install){
-                Write-Host "[$name] Verifying repository synchronization..."
-                Set-SafeDirectory $dir
-                try {
+            if($install -and -not (Test-Path -LiteralPath (Join-Path $dir '.git'))){
+                $detail='upgrade.cmd returned success, but fresh installation did not create a Git repository.'
+                Write-Host "[$name] ERROR: $detail" -ForegroundColor Red
+                Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII
+                $activity.Add([pscustomobject]@{Repository=$name;Reasons=@($reasons);Result='FAIL';Detail=$detail;Old=$old;Version=$new})
+                $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status='INSTALL';Result='FAIL'})
+                continue
+            }
+            Write-Host "[$name] Verifying repository synchronization..."
+            Set-SafeDirectory $dir
+            try {
                     Write-Host "[$name] Reading local HEAD..."
                     $lhAfter=(Invoke-Git @('rev-parse','HEAD') $dir -Capture).Split([Environment]::NewLine)[-1].Trim()
                     Write-Host "[$name] Local HEAD=$lhAfter."
@@ -332,13 +350,12 @@ foreach($item in $managed){
                         $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status='UPDATE';Result='FAIL'})
                         continue
                     }
-                } catch {
-                    Write-Host "[$name] ERROR: could not verify repository state after updater: $($_.Exception.Message)" -ForegroundColor Red
-                    Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII
-                    $activity.Add([pscustomobject]@{Repository=$name;Reasons=@($reasons);Result='FAIL';Detail="Repository verification failed: $($_.Exception.Message)";Old=$old;Version=$new})
-                    $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status='UPDATE';Result='FAIL'})
-                    continue
-                }
+            } catch {
+                Write-Host "[$name] ERROR: could not verify repository state after updater: $($_.Exception.Message)" -ForegroundColor Red
+                Set-Content -LiteralPath $failureMarker -Value ("failed " + (Get-Date -Format 'dd.MM.yyyy HH:mm:ss')) -Encoding ASCII
+                $activity.Add([pscustomobject]@{Repository=$name;Reasons=@($reasons);Result='FAIL';Detail="Repository verification failed: $($_.Exception.Message)";Old=$old;Version=$new})
+                $results.Add([pscustomobject]@{Repository=$name;Old=$old;Version=$new;Status=if($install){'INSTALL'}else{'UPDATE'};Result='FAIL'})
+                continue
             }
             Write-Host "[$name] Repository verification complete."
             if(Test-Path -LiteralPath $failureMarker){ Remove-Item -LiteralPath $failureMarker -Force -ErrorAction SilentlyContinue }
