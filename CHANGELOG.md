@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.23] - 28.09.2026
+
+### Changed
+- Existing local repositories now use their actual active Git branch reported by `git branch --show-current`.
+- Fresh installations still prefer `devel` when it exists; otherwise they use the repository's GitHub default branch such as `main` or `master`.
+
+### Fixed
+- Fresh installations are now verified as real Git repositories before they can be reported as `INSTALLED / OK`.
+- Post-upgrade HEAD synchronization verification now also applies to freshly installed repositories.
+- A successful `upgrade.cmd` exit code can no longer hide a failed or incomplete repository bootstrap.
+
+
 ## [1.22] - 28.09.2026
 
 ### Fixed
