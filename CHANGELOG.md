@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.22] - 28.09.2026
+
+### Fixed
+- GlobalUpgrade now waits only for the direct project `upgrade.cmd` process to exit instead of waiting for its complete descendant process tree.
+- Project updaters may restart long-lived applications such as Total Commander without blocking GlobalUpgrade indefinitely.
+- The direct `upgrade.cmd` exit code remains authoritative for updater success or failure.
+
+
 ## [1.21] - 26.09.2026
 
 ### Fixed
