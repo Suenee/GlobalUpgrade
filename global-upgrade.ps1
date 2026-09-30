@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Version = '1.23'
+$Version = '1.24'
 $Owner = 'Suenee'
 $Branch = 'main'
 $RepoName = 'GlobalUpgrade'
@@ -223,11 +223,31 @@ function Invoke-ProjectUpdater([string]$LocalDir) {
     return [int]$proc.ExitCode
 }
 
-function Install-AuthoritativeUpdater([string]$Name,[string]$SelectedBranch,[string]$LocalDir) {
-    $uri="https://raw.githubusercontent.com/$Owner/$Name/$SelectedBranch/upgrade.cmd"
-    $text=(Invoke-WebRequest -UseBasicParsing -Headers $Headers -Uri $uri).Content
-    $text=[Text.RegularExpressions.Regex]::Replace($text, '\r?\n', "`r`n")
-    [IO.File]::WriteAllText((Join-Path $LocalDir 'upgrade.cmd'),$text,(New-Object Text.UTF8Encoding($false)))
+function Initialize-FreshRepository([string]$Name,[string]$SelectedBranch,[string]$LocalDir) {
+    $repoUrl="https://github.com/$Owner/$Name.git"
+
+    if(Test-Path -LiteralPath $LocalDir -PathType Container){
+        $entries=@(Get-ChildItem -LiteralPath $LocalDir -Force -ErrorAction Stop)
+        $allowed=@('upgrade.cmd','logs')
+        $unexpected=@($entries | Where-Object { $allowed -notcontains $_.Name })
+        if($unexpected.Count -gt 0){
+            throw "Fresh install target is not empty. Refusing to overwrite: $($unexpected.Name -join ', ')"
+        }
+        foreach($entry in $entries){
+            Remove-Item -LiteralPath $entry.FullName -Recurse -Force -ErrorAction Stop
+        }
+    } else {
+        New-Item -ItemType Directory -Path $LocalDir -Force | Out-Null
+    }
+
+    Write-Host "[$Name] Cloning $SelectedBranch from $repoUrl..."
+    $parent=Split-Path -Parent $LocalDir
+    $leaf=Split-Path -Leaf $LocalDir
+    if(Test-Path -LiteralPath $LocalDir){ Remove-Item -LiteralPath $LocalDir -Force -ErrorAction Stop }
+    Invoke-Git @('clone','--branch',$SelectedBranch,'--single-branch',$repoUrl,$leaf) $parent
+    if(-not (Test-Path -LiteralPath (Join-Path $LocalDir '.git'))){
+        throw 'Git clone completed without creating a repository.'
+    }
 }
 
 Write-Host "GlobalUpgrade $Version"
@@ -284,10 +304,9 @@ foreach($item in $managed){
                 Write-Host "[$name] Detached HEAD; using discovered branch: $selected." -ForegroundColor Yellow
             }
         }
-        if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }
         if($install){
             Write-Host "[$name] Fresh install will use discovered branch: $selected."
-            Install-AuthoritativeUpdater $name $selected $dir
+            Initialize-FreshRepository $name $selected $dir
         }
         $needs=$install
         $reasons=New-Object System.Collections.Generic.List[string]
