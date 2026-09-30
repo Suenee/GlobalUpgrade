@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.24] - 30.09.2026
+
+### Changed
+- GlobalUpgrade now owns the initial Git checkout for repositories that are not installed locally.
+- Fresh installations clone the branch selected during discovery before the project's own `upgrade.cmd` is executed.
+- Projects no longer need to implement their own fresh-clone bootstrap merely to be installable by GlobalUpgrade.
+
+### Safety
+- Recovery from an incomplete bootstrap is automatic only when the target contains known bootstrap artifacts (`upgrade.cmd` and/or `logs`).
+- GlobalUpgrade refuses to overwrite a non-repository directory containing any other files or directories.
+
+### Fixed
+- Projects whose updater requires an existing Git checkout can now be installed automatically.
+- Fresh installation works consistently for `devel` repositories and repositories using their GitHub default branch such as `main` or `master`.
+
+
 ## [1.23] - 28.09.2026
 
 ### Changed
