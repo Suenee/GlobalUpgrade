@@ -3,3 +3,6 @@
 *.tmp
 *.bak
 .state/
+
+GlobalUpgrade.ini
+logs/
