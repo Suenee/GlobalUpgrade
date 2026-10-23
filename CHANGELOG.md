@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.25] - 23.10.2026
+
+### Added
+- Local `GlobalUpgrade.ini` configuration with `Logging.Mode` (off/single/all) and `Logging.Level` (error/info/debug).
+- Committed `GlobalUpgrade.ini.example` template; local configuration and logs are excluded from Git.
+- PowerShell transcript for each enabled run, with detailed Git commands, process exit codes, discovery output, and final summary.
+- Single mode overwrites `logs/GlobalUpgrade.log`; all mode creates timestamped run logs.
+
+### Notes
+- Logging.Level controls additional structured diagnostic messages. The transcript retains normal console output at all enabled levels.
+- Project updater output written directly by native child processes may not be fully captured by PowerShell transcription; individual project logs remain authoritative.
+
+
 ## [1.24] - 30.09.2026
 
 ### Changed
